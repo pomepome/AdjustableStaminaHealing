@@ -15,7 +15,10 @@ namespace AdjustableStaminaHealing
     public class ModEntry : Mod
     {
         private readonly float MaxHealing = 2.0f;
-        private readonly float MinHealing = -2.0f;
+        private readonly float MinHealing = 0.0f;
+
+        private int TicksAccumulator = 0;
+        private float HPAccumlator;
 
         Config config = null;
 
@@ -25,6 +28,7 @@ namespace AdjustableStaminaHealing
             GameEvents.OneSecondTick += OnGameUpdate;
             InputEvents.ButtonPressed += OnButtonPressed;
             CorrectHealingValue();
+            helper.WriteConfig(config);
             Log("Finished initialization.");
         }
 
@@ -34,21 +38,43 @@ namespace AdjustableStaminaHealing
             {
                 return;
             }
+            if(config.StopHealingWhileGamePaused && (Game1.paused || Game1.activeClickableMenu != null || Game1.CurrentEvent != null))
+            {
+                return;
+            }
             Player player = Game1.player;
             double healing = config.HealingValuePerSeconds;
-            if (config.NotHealWhileMoving && ((player.isMoving() && !player.isRidingHorse()) || player.UsingTool) && healing >= 0)
+            if(player.isMoving() || player.UsingTool)
+            {
+                TicksAccumulator = 0;
+                return;
+            }
+            TicksAccumulator = Math.Min(TicksAccumulator + 1, config.SecondsNeededToStartHealing);
+            if(config.HealHealth && player.health < player.maxHealth && TicksAccumulator >= config.SecondsNeededToStartHealing)
+            {
+                HPAccumlator += config.HealingValuePerSeconds;
+                if(HPAccumlator == Math.Floor(HPAccumlator))
+                {
+                    player.health += (int)Math.Min(HPAccumlator, player.maxHealth - player.health);
+                    HPAccumlator = 0;
+                }
+            }
+            if(TicksAccumulator < config.SecondsNeededToStartHealing || player.Stamina == player.MaxStamina)
             {
                 return;
             }
-            if(healing >= 0 && player.Stamina == player.MaxStamina)
+            else
             {
-                return;
+                player.Stamina += (float)Math.Min(healing, player.MaxStamina - player.Stamina);
             }
-            player.Stamina += (float)healing;
         }
 
         public void OnButtonPressed(object sender, EventArgs args)
         {
+            if(!Context.IsPlayerFree || Game1.activeClickableMenu != null)
+            {
+                return;
+            }
             if(IsPressed(config.DecreaseKey) && IsPressed(config.IncreaseKey))
             {
                 return;
@@ -73,24 +99,28 @@ namespace AdjustableStaminaHealing
         }
         private void AddValueToHealing(double val)
         {
-            config.HealingValuePerSeconds = Round(config.HealingValuePerSeconds + val, 3);
+            config.HealingValuePerSeconds = (float)Round(config.HealingValuePerSeconds + val, 3);
             if (CorrectHealingValue())
             {
                 Helper.WriteConfig(config);
                 Log("Healing value changed to {0}", config.HealingValuePerSeconds);
+                string health = config.HealHealth ? "/health" : "";
                 if (config.HealingValuePerSeconds == 0)
                 {
-                    ShowHUDMessage("Stamina won't be modified by ASH itself.");
+                    ShowHUDMessage($"Stamina{health} won't be modified by ASH itself.");
                 }
                 else
                 {
-                    double f = config.HealingValuePerSeconds > 0 ? config.HealingValuePerSeconds : -config.HealingValuePerSeconds;
-                    ShowHUDMessage(Format("Stamina will be {0} by {1} per sec.", (config.HealingValuePerSeconds > 0 ? "increased" : "decreased"), f));
+                    ShowHUDMessage($"Stamina{health} will be incleaced by {config.HealingValuePerSeconds} per sec.");
                 }
             }
         }
         private bool CorrectHealingValue()
         {
+            if(config.SecondsNeededToStartHealing < 0)
+            {
+                config.SecondsNeededToStartHealing = 0;
+            }
             if(config.HealingValuePerSeconds > MaxHealing)
             {
                 config.HealingValuePerSeconds = MaxHealing;
@@ -103,7 +133,7 @@ namespace AdjustableStaminaHealing
             {
                 return true;
             }
-            config.HealingValuePerSeconds = Round(config.HealingValuePerSeconds, 3);
+            config.HealingValuePerSeconds = (float)Round(config.HealingValuePerSeconds, 3);
             return false;
         }
         private double Round(double val, int exponent)

@@ -9,8 +9,10 @@ namespace AdjustableStaminaHealing
 {
     public class Config
     {
-        public double HealingValuePerSeconds { get; set; } = 0.5f;
-        public bool NotHealWhileMoving { get; set; } = true;
+        public float HealingValuePerSeconds { get; set; } = 0.5f;
+        public int SecondsNeededToStartHealing { get; set; } = 3;
+        public bool StopHealingWhileGamePaused { get; set; } = true;
+        public bool HealHealth { get; set; } = false;
         public Keys IncreaseKey{ get; set; } = Keys.O;
         public Keys DecreaseKey { get; set; } = Keys.P;
     }

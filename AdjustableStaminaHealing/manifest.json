@@ -1,7 +1,7 @@
 {
    "Name": "AdjustableStaminaHealing",
    "Author": "punyo",
-   "Version": "1.0.1",
+   "Version": "1.0.4",
    "Description": "Utility to change stamina healing value to adjust difficulty",
    "UniqueID": "punyo.AdjustableStaminaHealing",
    "EntryDll": "AdjustableStaminaHealing.dll",
